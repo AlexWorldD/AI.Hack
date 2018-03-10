@@ -13,9 +13,10 @@ def find_bestRF(drop='', fea='', scoring='roc_auc', title='', selectK='', fillna
                 t='Targets2016', cut=False, parallel=[4, 2], required='', phone='Operator'):
     """Testing linear method for train"""
     train_X, train_Y = loading()
+    print('DONE with train data!')
 
     N = [20, 50, 100, 200, 500, 1000]
-    N_v2 = [500, 1000, 2000]
+    N_v2 = [500, 1000]
     grid = [
         {'criterion': ('gini', 'entropy'),
          'n_estimators': N,
@@ -25,8 +26,8 @@ def find_bestRF(drop='', fea='', scoring='roc_auc', title='', selectK='', fillna
     ]
     grid_light = [
         {'n_estimators': N_v2,
-         'max_features': [0.3, 0.4, 0.5],
-         'max_depth': [3, 5, 8, 10]
+         'max_features': [0.4, 0.5],
+         'max_depth': [3, 5, 8]
          }
     ]
     # KFold for splitting
@@ -36,7 +37,7 @@ def find_bestRF(drop='', fea='', scoring='roc_auc', title='', selectK='', fillna
     rf = RandomForestClassifier(random_state=241, n_jobs=-1)
 
     test_X = loading_test()
-
+    print('DONE with test data!')
     clf = GridSearchCV(estimator=rf,
                        param_grid=grid_light,
                        scoring=scoring,
