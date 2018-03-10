@@ -6,6 +6,7 @@ from time import time
 from munging import *
 from sklearn.model_selection import KFold, cross_val_score
 from sklearn.ensemble import RandomForestClassifier
+from sklearn.linear_model import LogisticRegression
 from sklearn.model_selection import GridSearchCV
 from sklearn.feature_selection import SelectKBest, SelectFromModel
 
@@ -16,7 +17,7 @@ def find_bestRF(drop='', fea='', scoring='roc_auc', title='', selectK='', fillna
     print('DONE with train data!')
 
     N = [20, 50, 100, 200, 500, 1000]
-    N_v2 = [500, 1000]
+    N_v2 = [500]
     grid = [
         {'criterion': ('gini', 'entropy'),
          'n_estimators': N,
@@ -26,15 +27,16 @@ def find_bestRF(drop='', fea='', scoring='roc_auc', title='', selectK='', fillna
     ]
     grid_light = [
         {'n_estimators': N_v2,
-         'max_features': [0.4, 0.5],
-         'max_depth': [3, 5, 8]
+         'max_features': [0.5],
+         'max_depth': [3, 5]
          }
     ]
     # KFold for splitting
-    cv = KFold(n_splits=5,
+    cv = KFold(n_splits=2,
                shuffle=True,
                random_state=241)
     rf = RandomForestClassifier(random_state=241, n_jobs=-1)
+    lr = LogisticRegression(C=10, n_jobs=-1)
 
     test_X = loading_test()
     print('DONE with test data!')
@@ -54,6 +56,7 @@ def find_bestRF(drop='', fea='', scoring='roc_auc', title='', selectK='', fillna
 
 
 if __name__ == '__main__':
-    # data = pd.read_csv('../data/train_data.csv')
-    find_bestRF()
+    data = loading_test()
+    # res = pd.read_csv('/Users/lex/Dev/GitHub/AI.Hack/result.csv')
+    data.to_csv('result.csv', index=False)
     print('Great!')

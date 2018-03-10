@@ -3,8 +3,13 @@ import pandas as pd
 import numpy as np
 from scipy import stats
 from sklearn import preprocessing
+from sklearn.model_selection import KFold, cross_val_score
+from sklearn.ensemble import RandomForestClassifier
+from sklearn.neural_network import MLPClassifier
+from sklearn.model_selection import GridSearchCV
 from MultiColumnEncoder import *
 from multiprocessing import Pool, cpu_count
+from sklearn.linear_model import LogisticRegression
 
 ewma = pd.Series.ewm
 titles = ['v_l', 'sum_b', 'percent']
@@ -13,6 +18,49 @@ from tqdm import tqdm, tqdm_pandas
 
 
 # types = {'time', 'date': np.datetime, 'v_l', 'q', 'n_tr', 'sum_b', 'code_azs', 'id', 'first_prch', 'location', 'region', 'code', 'code1', 'percent', 'type'}
+
+def RF(data, scoring='roc_auc', parallel=[4, 2]):
+    """Testing linear method for train"""
+    train, test = split(data)
+    if test.shape[0] > 0:
+        try:
+            train_X, train_Y = split_dataset(train)
+            test_X, _ = split_dataset(test)
+
+            rf = RandomForestClassifier(n_estimators=40, random_state=241, max_depth=4, n_jobs=-1)
+            lr = LogisticRegression(C=10, solver='sag', n_jobs=-1)
+            nn = MLPClassifier(random_state=241, verbose=1)
+
+            # ---- EPIC HERE ----
+            rf.fit(train_X, train_Y)
+            lr.fit(train_X, train_Y)
+            if 1 in rf.classes_:
+                res1 = rf.predict_proba(test_X)[0][-1]
+                res2 = lr.predict_proba(test_X)[0][-1]
+                res3 = nn.predict_proba(test_X)[0][-1]
+                res = (res1+res2+res3)/3
+            else:
+                res = 0.0
+            print(res)
+        except:
+            res = 0.5
+    else:
+        res = 0.5
+    return res
+
+
+def split_dataset(d):
+    t_t = list(d)
+    t_t.remove('target')
+    X = d[t_t]
+    # Y = data[list(data_target)[1:2]]
+    Y = d['target']
+    return X, Y
+
+
+def split(data):
+    return data[:-1], data[-1:]
+
 
 def train_group_id(df):
     df[1].sort_values(by='date', inplace=True)
@@ -26,19 +74,20 @@ def train_group_id(df):
                              index=d.index, columns=titles)
     return d
 
+
 def test_group_id(df):
     df[1].sort_values(by='date', inplace=True)
     d = df[1].groupby(['year', 'month'], as_index=False).agg(
         {'v_l': np.mean, 'sum_b': np.sum, 'percent': np.sum, 'type': lambda x: stats.mode(x)[0]})
     d['target'] = d['month'].shift(-1) - d['month']
-    d['target'] = d['target'].apply(lambda x: 1 if x in [1, -11] else 0)
-    d.drop(['year', 'month', 'target'], axis=1, inplace=True)
+    d['target'] = d['target'].apply(lambda x: 0 if x in [1, -11] else 1)
+    d.drop(['year', 'month'], axis=1, inplace=True)
     scaler = preprocessing.MinMaxScaler(feature_range=(0, 1))
     d[titles] = pd.DataFrame(scaler.fit_transform(d[titles]),
                              index=d.index, columns=titles)
-    cur_row = d.tail(1)
-    cur_row['id'] = df[0]
-    return cur_row
+    res = RF(d)
+    return pd.DataFrame(data={'id': [df[0]], 'proba': [res]})
+
 
 def applyParallel(dfGrouped, func):
     with Pool(cpu_count()) as p:
