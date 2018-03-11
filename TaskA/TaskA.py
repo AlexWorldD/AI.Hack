@@ -1,4 +1,8 @@
-from __future__ import absolute_import
+#!/usr/bin/env python
+# -*- coding: utf-8 -*-
+# from __future__ import absolute_import
+import warnings
+warnings.filterwarnings("ignore")
 import os, re, json
 import numpy as np
 import pandas as pd
@@ -56,7 +60,10 @@ def find_bestRF(drop='', fea='', scoring='roc_auc', title='', selectK='', fillna
 
 
 if __name__ == '__main__':
-    data = loading_test()
+    # r1 = pd.read_csv('../results/resultV2.csv', index_col=0)
+    # r2 = pd.read_csv('../result.csv', index_col=0)
+    # data = loading_test()
+    data = loading_group()
     # res = pd.read_csv('/Users/lex/Dev/GitHub/AI.Hack/result.csv')
-    data.to_csv('result.csv', index=False)
+    # data.to_csv('resultV2.csv', index=False)
     print('Great!')
