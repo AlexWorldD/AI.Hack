@@ -27,7 +27,7 @@ def RF(data, scoring='roc_auc', parallel=[4, 2]):
             train_X, train_Y = split_dataset(train)
             test_X, _ = split_dataset(test)
 
-            rf = RandomForestClassifier(n_estimators=50, random_state=241, max_depth=8, n_jobs=-1)
+            rf = RandomForestClassifier(n_estimators=100, random_state=241, max_depth=8, n_jobs=-1)
             # lr = LogisticRegression(C=10, solver='saga', n_jobs=-1)
             # nn = MLPClassifier(random_state=241, verbose=1)
 
@@ -36,7 +36,7 @@ def RF(data, scoring='roc_auc', parallel=[4, 2]):
             # lr.fit(train_X, train_Y)
             if 1 in rf.classes_:
                 res1 = rf.predict_proba(test_X)[0][-1]
-                res = res1
+                res = res1/test['series'].values[0]
             else:
                 res = 0.0
         except:
@@ -130,6 +130,7 @@ def test_group_id(df, encode='label', scale=True):
         d = le.transform(d)
     d['target'] = d['month'].shift(-1) - d['month']
     d['target'] = d['target'].apply(lambda x: 0 if x in [1, -11] else 1)
+    d['series'] = pd.Series([max(x) for x in pd.DataFrame([(d['month'] - d['month'].shift(s)).apply(lambda x: s if x in [s, s-12] else 1) for s in range(1, 12)]).transpose().values])
     d.drop(['year', 'month'], axis=1, inplace=True)
     if scale:
         scaler = preprocessing.MinMaxScaler(feature_range=(0, 1))
@@ -142,7 +143,7 @@ def test_group_id(df, encode='label', scale=True):
 
 def applyParallel(dfGrouped, func):
     with Pool(cpu_count()) as p:
-        ret_list = p.map(func, [group for group in dfGrouped][:10])
+        ret_list = p.map(func, [group for group in dfGrouped])
     return pd.concat(ret_list)
 
 
@@ -225,7 +226,7 @@ def loading_group(path='../one_group.csv'):
     return data
 
 
-def loading_test(path='data/test_data.csv'):
+def loading_test(path='../data/test_data.csv'):
     """
     Simple uploading data function
     :param data: raw data in
@@ -237,9 +238,6 @@ def loading_test(path='data/test_data.csv'):
     raw_data['time'].fillna('04:00:00', inplace=True)
     raw_data['month'] = raw_data['date'].apply(lambda x: x.month)
     raw_data['year'] = raw_data['date'].apply(lambda x: x.year)
-
-    # raw_data['date'] = raw_data[['date', 'time']].apply(
-    #     lambda x: pd.to_datetime(x[0] + ' ' + x[1], errors='coerce'), axis=1)
     groups = raw_data.groupby('id')
     data = pd.DataFrame(columns=['id', 'v_l', 'sum_b', 'percent', 'type', 'q'])
     data = applyParallel(groups, test_group_id)
