@@ -58,6 +58,6 @@ model = Model(inputs, conf)
 model.compile(loss='binary_crossentropy',
                         optimizer='RMSprop',
                         metrics=['accuracy'])
-model.fit_generator(generate_samp(dataset), steps_per_epoch=1500, epochs=20)
+model.fit_generator(generate_samp(dataset), steps_per_epoch=1500, epochs=10)
 
-model.save('model3.h5')
+model.save('model2.h5')

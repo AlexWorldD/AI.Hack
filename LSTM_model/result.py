@@ -29,7 +29,7 @@ def generate_test(df):
         yield np.array([[[tmp2[k], tmp3[k]] for k in range(24)]]), df.id[num]
     
 
-model = load_model('model3.h5')
+model = load_model('model2.h5')
 res3 = []
 for i in generate_test(dataset):
     pred = model.predict(i[0])[0]
