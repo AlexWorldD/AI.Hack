@@ -28,19 +28,31 @@ def RF(data, scoring='roc_auc', parallel=[4, 2]):
             test_X, _ = split_dataset(test)
 
             rf = RandomForestClassifier(n_estimators=100, random_state=241, max_depth=8, n_jobs=-1)
-            # lr = LogisticRegression(C=10, solver='saga', n_jobs=-1)
-            # nn = MLPClassifier(random_state=241, verbose=1)
+            rf.fit(train_X, train_Y)
+            lr = LogisticRegression(C=10, solver='saga', n_jobs=-1)
+            # nn = MLPClassifier(random_state=241, verbose=1, hidden_layer_sizes=(10, 100, 20))
 
             # ---- EPIC HERE ----
-            rf.fit(train_X, train_Y)
-            # lr.fit(train_X, train_Y)
+            lr.fit(train_X, train_Y)
+            # nn.fit(train_X, train_Y)
+
             if 1 in rf.classes_:
-                res1 = rf.predict_proba(test_X)[0][-1]
-                res = res1/test['series'].values[0]
+                res1 = (rf.predict_proba(test_X)[0][-1] + lr.predict_proba(test_X)[0][-1]) / 2
+                if test['series'].values[0] != 0:
+                    res = res1 / (1 + test['series'].values[0] * 2)
+                else:
+                    res = res1 if res1 > 0.0001 else 0.000000001
             else:
                 res = 0.0
         except:
-            res = 0.5
+            if 1 in rf.classes_:
+                res1 = rf.predict_proba(test_X)[0][-1]
+                if test['series'].values[0] != 0:
+                    res = res1 / np.log(test['series'].values[0]) * 2
+                else:
+                    res = res1 if res1 > 0.0001 else 0.000000001
+            else:
+                res = 0.0
     else:
         res = 0.5
     return res
@@ -71,24 +83,28 @@ def train_group_id(df):
                              index=d.index, columns=titles)
     return d
 
+
 def to_part_day(hour):
-    if hour<9:
-        if hour>5:
+    if hour < 9:
+        if hour > 5:
             return 'morning'
         else:
             return 'night'
-    elif hour<14:
+    elif hour < 14:
         return 'noun'
-    elif hour<18:
+    elif hour < 18:
         return 'day'
-    elif hour<24:
+    elif hour < 24:
         return 'evening'
 
+
 def add_features(df):
-    fuel_year = {key: group[group['q'] == 0]['sum_b'].sum() / max(group[group['q'] == 0]['v_l'].sum(),1) for key, group in
+    fuel_year = {key: group[group['q'] == 0]['sum_b'].sum() / max(group[group['q'] == 0]['v_l'].sum(), 1) for key, group
+                 in
                  df.groupby('year')}
     df['fuel_type'] = df['year'].apply(lambda x: fuel_year[x])
-    products_year = {key: group[group['v_l'] == 0]['sum_b'].sum() / max(group[group['v_l'] == 0]['q'].sum(),1) for key, group
+    products_year = {key: group[group['v_l'] == 0]['sum_b'].sum() / max(group[group['v_l'] == 0]['q'].sum(), 1) for
+                     key, group
                      in
                      df.groupby('year')}
     df['products_type'] = df['year'].apply(lambda x: products_year[x])
@@ -97,7 +113,7 @@ def add_features(df):
 
 
 def test_group_id(df, encode='label', scale=True):
-    features = ['avg_money', 'avg_percent', 'avg_fuel', 'avg_q']
+    features = ['avg_money', 'avg_percent', 'avg_fuel', 'avg_q', 'series']
     df[1].sort_values(by='date', inplace=True)
     # df[1].to_csv('one_group.csv', index=False)
     add_features(df[1])
@@ -123,19 +139,21 @@ def test_group_id(df, encode='label', scale=True):
     d = df[1].groupby(['year', 'month'], as_index=False).agg(
         {'avg_money': np.mean, 'avg_fuel': np.mean, 'avg_q': np.mean, 'type': lambda x: stats.mode(x)[0],
          'avg_percent': np.mean, 'day_part': lambda x: stats.mode(x)[0], 'week_day': lambda x: stats.mode(x)[0]})
-    if encode=='onehot':
+    if encode == 'onehot':
         d = pd.get_dummies(d, columns=['day_part', 'week_day'])
     else:
         le = MultiColumnEncoder.EncodeCategorical(columns=['day_part', 'week_day']).fit(d)
         d = le.transform(d)
     d['target'] = d['month'].shift(-1) - d['month']
     d['target'] = d['target'].apply(lambda x: 0 if x in [1, -11] else 1)
-    d['series'] = pd.Series([max(x) for x in pd.DataFrame([(d['month'] - d['month'].shift(s)).apply(lambda x: s if x in [s, s-12] else 1) for s in range(1, 12)]).transpose().values])
+    d['series'] = pd.Series([max(x) for x in pd.DataFrame(
+        [(d['month'] - d['month'].shift(s)).apply(lambda x: s if x in [s, s - 12] else 1) for s in
+         range(1, 12)]).transpose().values])
     d.drop(['year', 'month'], axis=1, inplace=True)
     if scale:
         scaler = preprocessing.MinMaxScaler(feature_range=(0, 1))
         d[features] = pd.DataFrame(scaler.fit_transform(d[features]),
-                                 index=d.index, columns=features)
+                                   index=d.index, columns=features)
     res = RF(d)
     print(res)
     return pd.DataFrame(data={'id': [df[0]], 'proba': [res]})

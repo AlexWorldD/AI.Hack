@@ -65,5 +65,5 @@ if __name__ == '__main__':
     data = loading_test()
     # data = loading_group()
     # res = pd.read_csv('/Users/lex/Dev/GitHub/AI.Hack/result.csv')
-    data.to_csv('resultV4.csv', index=False)
+    data.to_csv('result_V5.csv', index=False)
     print('Great!')
